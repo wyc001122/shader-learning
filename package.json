@@ -1,0 +1,51 @@
+{
+  "name": "shader-learning",
+  "version": "1.0.0",
+  "description": "同步着色器学习网站数据",
+  "main": "script/getData.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "sync": "node script/getData.js",
+    "sync-images": "node script/getImage.js",
+    "get-file-images": "node script/getFileImage.js"
+  },
+  "dependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@vueuse/core": "^13.0.0",
+    "axios": "^1.8.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "file-saver": "^2.0.5",
+    "fs": "0.0.1-security",
+    "highlight.js": "^11.11.1",
+    "lucide-vue-next": "^0.479.0",
+    "markdown-it": "^14.1.0",
+    "monaco-editor": "^0.52.2",
+    "path": "^0.12.7",
+    "reka-ui": "^2.0.2",
+    "sass-embedded": "^1.85.1",
+    "tailwind-merge": "^3.0.2",
+    "tailwindcss-animate": "^1.0.7",
+    "v-viewer": "^3.0.11",
+    "viewerjs": "^1.11.7",
+    "vue": "^3.5.13",
+    "vue-router": "4"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.21",
+    "code-inspector-plugin": "^0.20.4",
+    "prismjs": "^1.30.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.7.2",
+    "unplugin-auto-import": "^19.1.1",
+    "vite": "^6.2.0",
+    "vue-tsc": "^2.2.4"
+  }
+}
