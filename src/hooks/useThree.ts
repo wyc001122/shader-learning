@@ -140,7 +140,6 @@ export const useThree = (container: HTMLElement, sceneSettings: SceneSettings) =
     let requestID: number = 0;
     function _runTask() {
         _taskList.forEach(task => task());
-
         // 渲染场景
         renderer.render(scene, camera);
         requestID = requestAnimationFrame(_runTask);

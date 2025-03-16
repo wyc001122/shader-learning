@@ -1,13 +1,17 @@
 <script lang="ts" setup>
-import useThree, { type SceneSettings } from '@/hooks/useThree'
+import useThree from '@/hooks/useThree'
 import * as THREE from 'three'
+
 const props = defineProps<{
-    sceneSettings: SceneSettings
     vertexShader: string
     fragmentShader: string
-    currentTopicData?: any
-    iTime?: number
 }>()
+
+const info = inject('info') as Ref<any>
+const taskDetail = inject('taskDetail') as Ref<any>
+const sceneSettings = computed(() => {
+    return JSON.parse(taskDetail.value.sceneSettings)
+})
 
 const container = ref<HTMLDivElement>()
 let material: THREE.ShaderMaterial
@@ -15,19 +19,19 @@ let material: THREE.ShaderMaterial
 const _getPixelData = ref<any>()
 
 function getChannelImage(index: number) {
-    return new URL(`../assets/channels/${props.currentTopicData.selectionName}_${props.currentTopicData.slug}_${index}.jpg`, import.meta.url).href
+    return new URL(`../assets/channels/${info.value.collect.slug}_${info.value.topic.slug}_${index}.jpg`, import.meta.url).href
 }
 
 const textLoader = new THREE.TextureLoader()
 onMounted(() => {
-    const { scene, renderer, track, getPixelData, tick } = useThree(container.value as HTMLElement, props.sceneSettings)
+    const { scene, renderer, track, getPixelData, tick, viewPort } = useThree(container.value as HTMLElement, sceneSettings.value)
     _getPixelData.value = getPixelData
     // 创建对象 
     let objects;
-    if (props.sceneSettings.object) {
-        objects = [props.sceneSettings.object]
-    } else if (props.sceneSettings.objects) {
-        objects = props.sceneSettings.objects
+    if (sceneSettings.value.object) {
+        objects = [sceneSettings.value.object]
+    } else if (sceneSettings.value.objects) {
+        objects = sceneSettings.value.objects
     }
 
     if (objects && objects.length > 0) {
@@ -60,32 +64,31 @@ onMounted(() => {
                     value: null
                 },
             }
-            if (props.currentTopicData?.channels) {
-                props.currentTopicData.channels.forEach(({ index }: any) => {
+            if (taskDetail.value.channels) {
+                taskDetail.value.channels.forEach(({ index }: any) => {
                     const nameKey = `iChannel${index}`
                     const url = getChannelImage(index)
                     const texture = textLoader.load(url)
                     texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+                    texture.magFilter = texture.minFilter = THREE.NearestFilter
                     iChannels[nameKey].value = texture
                 })
             }
             const { x, y } = renderer.getSize(new THREE.Vector2());
-
             material = new THREE.ShaderMaterial({
                 vertexShader: props.vertexShader,
                 fragmentShader: props.fragmentShader,
                 transparent: true,
                 uniforms: {
                     iResolution: { value: new THREE.Vector2(x, y) },
-                    iTime: { value: props.iTime },
+                    // iTime: { value: props.iTime },
                     ...iChannels
                 }
             });
 
             tick(() => {
-                const { x, y } = renderer.getSize(new THREE.Vector2());
-                material.uniforms.iTime.value = props.iTime
-                material.uniforms.iResolution.value = new THREE.Vector2(x, y)
+                // material.uniforms.iTime.value = props.iTime
+                material.uniforms.iResolution.value = new THREE.Vector2(~~viewPort.value.width, ~~viewPort.value.height)
             })
 
             const mesh = new THREE.Mesh(geometry, material);

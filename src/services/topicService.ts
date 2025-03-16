@@ -112,8 +112,8 @@ export function getTopicData(collectSlug: string, topicSlug: string): {
     vertex_answer = vertex_answer.replace(/^[\s\n]+/, '')
 
     topicData = {
-      selectionName: collectData.slug,
       ...rawTopicData,
+      selectionName: collectData.slug,
       task: md.render(taskDetail.description.split('### Task').filter(Boolean)[1] || ''),
       theory: md.render(taskDetail.description.split('### Task').filter(Boolean)[0] || ''),
       fragmentShader: taskDetail.fragmentShader,
@@ -130,8 +130,8 @@ export function getTopicData(collectSlug: string, topicSlug: string): {
     }
   } else {
     console.log('任务没有详细数据')
-    return { collectData, topicData: null }
+    return { topicData: null }
   }
 
-  return { collectData, topicData }
+  return { topicData }
 } 

@@ -24,25 +24,27 @@ import menuData from '@/data/menu.json'
 
 const route = useRoute()
 
+const collectList = ref(menuData.navMain)
+
 // 获取当前路由对应的菜单项
-const currentMenuInfo = computed(() => {
-    const path = route.path
-    const [collectSlug, topicSlug] = path.split('/').filter(Boolean)
+const info = computed(() => {
+    const [collect_slug, topic_slug] = route.path.split('/').filter(Boolean)
 
-    // 查找当前集合
-    const currentCollect = menuData.navMain.find(item => item.slug === collectSlug) || null
+    // 当前集合索引
+    const collectIndex = collectList.value.findIndex((item: any) => item.slug === collect_slug)
 
-    // 查找当前主题
-    let currentTopic = null
-    if (currentCollect && currentCollect.child && currentCollect.child.tasks && topicSlug) {
-        currentTopic = currentCollect.child.tasks.find((task: any) => task.slug === topicSlug) || null
-    }
+    // 当前集合
+    const collect = collectList.value[collectIndex] || null
 
-    return {
-        collect: currentCollect,
-        topic: currentTopic
-    }
+    // 当前题目索引
+    const topic_index = collect.child.tasks.findIndex((item: any) => item.slug === topic_slug);
+
+    // 当前题目
+    const topic = collect.child.tasks[topic_index] || null
+
+    return { collect, topic, }
 })
+provide('info', info)
 
 const reloadKey = ref(0)
 watch(route, () => reloadKey.value++)
@@ -56,17 +58,17 @@ watch(route, () => reloadKey.value++)
                 <Separator orientation="vertical" class="mr-2 h-4" />
                 <Breadcrumb>
                     <BreadcrumbList>
-                        <BreadcrumbItem v-if="currentMenuInfo.collect" class="hidden md:block">
+                        <BreadcrumbItem v-if="info.collect" class="hidden md:block">
                             <BreadcrumbLink :href="'#'">
-                                {{ currentMenuInfo.collect?.name || '' }}
+                                {{ info.collect?.name || '' }}
                             </BreadcrumbLink>
                         </BreadcrumbItem>
-                        <BreadcrumbSeparator v-if="currentMenuInfo.collect" class="hidden md:block" />
-                        <BreadcrumbItem v-if="currentMenuInfo.topic">
-                            <BreadcrumbPage>{{ currentMenuInfo.topic?.name || '' }}</BreadcrumbPage>
+                        <BreadcrumbSeparator v-if="info.collect" class="hidden md:block" />
+                        <BreadcrumbItem v-if="info.topic">
+                            <BreadcrumbPage>{{ info.topic?.name || '' }}</BreadcrumbPage>
                         </BreadcrumbItem>
                     </BreadcrumbList>
-                </Breadcrumb> 
+                </Breadcrumb>
             </header>
             <div class="flex flex-1 flex-col gap-4 p-2 pt-0 overflow-hidden">
                 <router-view :key="reloadKey" />
