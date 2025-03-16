@@ -100,10 +100,17 @@ export function getTopicData(collectSlug: string, topicSlug: string): {
 
   // 处理任务详情数据
   let topicData: TopicData | null = null
-  
+
   if (rawTopicData.child && rawTopicData.child.task) {
     const taskDetail = rawTopicData.child.task;
-    
+
+    let fragment_answer = hljs.highlight(taskDetail.fragmentShader, { language: 'glsl' }).value
+    // 移除头部的空格
+    fragment_answer = fragment_answer.replace(/^[\s\n]+/, '')
+    let vertex_answer = hljs.highlight(taskDetail.vertexShader, { language: 'glsl' }).value
+    // 移除头部的空格
+    vertex_answer = vertex_answer.replace(/^[\s\n]+/, '')
+
     topicData = {
       selectionName: collectData.slug,
       ...rawTopicData,
@@ -113,9 +120,13 @@ export function getTopicData(collectSlug: string, topicSlug: string): {
       vertexShader: taskDetail.vertexShader,
       defaultFragmentShader: taskDetail.defaultFragmentShader,
       defaultVertexShader: taskDetail.defaultVertexShader,
-      fragment_answer: hljs.highlight(taskDetail.fragmentShader, { language: 'glsl' }).value,
-      vertex_answer: hljs.highlight(taskDetail.vertexShader, { language: 'glsl' }).value,
-      channels: taskDetail.channels || []
+      fragment_answer: fragment_answer,
+      vertex_answer: vertex_answer,
+      channels: taskDetail.channels || [],
+      vertexCodeEditable: taskDetail.vertexCodeEditable,
+      fragmentCodeEditable: taskDetail.fragmentCodeEditable,
+      postProcessCodeEditable: taskDetail.postProcessCodeEditable,
+      propertiesEditable: taskDetail.propertiesEditable,
     }
   } else {
     console.log('任务没有详细数据')

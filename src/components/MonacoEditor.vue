@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import * as monaco from 'monaco-editor'
 import { language } from "@/views/examples/glsl"
 import '@/views/examples/userWorker'
+import { useResizeObserver } from '@vueuse/core'
 
 const props = defineProps<{
   value: string
@@ -16,27 +17,32 @@ const editorContainer = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   if (!editorContainer.value) return
-  
+
   monaco.languages.register({ id: 'glsl' })
   monaco.languages.setMonarchTokensProvider('glsl', language)
-  
+
   editor = monaco.editor.create(editorContainer.value, {
     value: props.value,
     language: props.language || 'glsl',
   })
-  
+
   editor.onDidChangeModelContent(() => {
     emit('update:value', editor.getValue())
   })
-  
-  window.addEventListener('resize', resizeEditor)
 })
+
+useResizeObserver(editorContainer, (entries) => {
+  if (entries.length) {
+    resizeEditor()
+  }
+})
+
 
 onBeforeUnmount(() => {
   if (editor) {
     editor.dispose()
   }
-  window.removeEventListener('resize', resizeEditor)
+
 })
 
 watch(() => props.value, (newValue) => {
@@ -62,4 +68,4 @@ function resizeEditor() {
   height: 100%;
   min-height: 300px;
 }
-</style> 
+</style>

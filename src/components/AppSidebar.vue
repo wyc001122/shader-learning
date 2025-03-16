@@ -18,10 +18,11 @@ import {
   type SidebarProps,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { GalleryVerticalEnd, Minus, Plus } from 'lucide-vue-next'
+import { GalleryVerticalEnd, Minus, Plus, CheckCircle } from 'lucide-vue-next'
 import { toRawType } from '@vue/shared'
 
 import menuData from "@/data/menu.json"
+import { isTopicCompleted } from '@/utils/topicCompletionUtils'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
   variant: 'floating',
@@ -29,6 +30,17 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 const data = ref<any>(menuData)
 
 const route = useRoute()
+
+// 强制刷新组件的标志
+const refreshKey = ref(0)
+
+// 监听题目完成事件
+function setupTopicCompletedListener() {
+  window.addEventListener('topic-completed', () => {
+    // 增加刷新键，强制组件重新渲染
+    refreshKey.value++
+  })
+}
 
 // 滚动到活动菜单项
 const scrollToActiveMenuItem = async () => {
@@ -74,10 +86,18 @@ onMounted(() => {
   if (toRawType(defaultOpen.value) === 'Number') {
     scrollToActiveMenuItem()
   }
+  
+  // 设置题目完成事件监听
+  setupTopicCompletedListener()
+})
+
+onBeforeUnmount(() => {
+  // 移除事件监听器
+  window.removeEventListener('topic-completed', () => {})
 })
 </script>
 <template>
-  <Sidebar v-bind="props">
+  <Sidebar v-bind="props" :key="refreshKey">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -117,8 +137,17 @@ onMounted(() => {
                   <SidebarMenuSubItem v-for="task in module.child.tasks" :key="task.slug">
                     <SidebarMenuSubButton as-child :is-active="route.path === `/${module.slug}/${task.slug}`">
                       <router-link :to="`/${module.slug}/${task.slug}`"
-                        :data-active="route.path === `/${module.slug}/${task.slug}`">
-                        {{ task.name }}
+                        :data-active="route.path === `/${module.slug}/${task.slug}`"
+                        class="flex items-center gap-2">
+                        <!-- 完成状态标记 - 圆形绿色背景的对勾 -->
+                        <div v-if="isTopicCompleted(module.slug, task.slug)" 
+                          class="flex-shrink-0 w-4 h-4 rounded-full bg-[#4ca154] flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" 
+                            stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        </div>
+                        <span>{{ task.name }}</span>
                       </router-link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
