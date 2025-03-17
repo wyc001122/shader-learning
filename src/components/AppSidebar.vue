@@ -17,8 +17,9 @@ import {
   SidebarMenuSubItem,
   type SidebarProps,
 } from '@/components/ui/sidebar'
-import { Minus, Plus } from 'lucide-vue-next'
-
+import { Minus, Plus, CircleCheck } from 'lucide-vue-next'
+import { ANSWER_KEY } from '@/utils/locaAnswer'
+import { useStorage } from '@vueuse/core'
 import menuData from "@/data/menu.json"
 
 const props = withDefaults(defineProps<SidebarProps>(), {
@@ -30,6 +31,45 @@ const route = useRoute()
 
 // 默认打开的模块
 const info = inject('info') as Ref<any>
+
+const local_answer = useStorage(ANSWER_KEY, {}) as Ref<any>
+
+function isCompleted(collect_slug: string, topic_slug: string) {
+  const answer_vertex = local_answer.value[`${collect_slug}_${topic_slug}_vertex`]
+  const answer_fragment = local_answer.value[`${collect_slug}_${topic_slug}_fragment`]
+  if (!answer_vertex || !answer_fragment) {
+    return false
+  }
+  return true
+}
+watch(route, () => {
+  nextTick(() => {
+    scrollIntoCurrent()
+  })
+})
+
+const reloadKey = ref(0)
+function scrollIntoCurrent() {
+  // 找到 a标签 且带有属性 data-sidebar='menu-sub-button' 且 data-active = true 的
+  const target = document.querySelector('a[data-active=true]')
+  console.log("%c Line:55 🥛 target", "color:#7f2b82", target);
+  if (!target) {
+    reloadKey.value++
+    return
+  }
+  // 监测taget是否在可视区域内
+  const targetRect = target!.getBoundingClientRect()
+  const isVisible = targetRect?.top < window.innerHeight && targetRect?.bottom > 0
+  if (!isVisible) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+}
+
+
+
+onMounted(() => {
+  scrollIntoCurrent()
+})
 </script>
 <template>
   <Sidebar v-bind="props">
@@ -56,8 +96,8 @@ const info = inject('info') as Ref<any>
     <SidebarContent>
       <SidebarGroup>
         <SidebarMenu>
-          <Collapsible v-for="(module) in data.navMain" :key="module.slug" :default-open="module.slug === info.collect?.slug"
-            class="group/collapsible">
+          <Collapsible v-for="(module) in data.navMain" :key="module.slug + reloadKey"
+            :default-open="module.slug === info.collect?.slug" class="group/collapsible">
             <SidebarMenuItem>
               <CollapsibleTrigger as-child>
                 <SidebarMenuButton>
@@ -69,9 +109,14 @@ const info = inject('info') as Ref<any>
               <CollapsibleContent v-if="module.child && module.child.tasks && module.child.tasks.length">
                 <SidebarMenuSub>
                   <SidebarMenuSubItem v-for="task in module.child.tasks" :key="task.slug">
-                    <SidebarMenuSubButton as-child :is-active="route.path === `/${module.slug}/${task.slug}`">
+                    <SidebarMenuSubButton as-child :is-active="route.path === `/${module.slug}/${task.slug}`" :class="{
+                      'data-[active=true]:bg-[#16a34a]/10': isCompleted(module.slug, task.slug),
+                      'hover:bg-[#16a34a]/10': isCompleted(module.slug, task.slug)
+                    }">
                       <router-link :to="`/${module.slug}/${task.slug}`"
                         :data-active="route.path === `/${module.slug}/${task.slug}`" class="flex items-center gap-2">
+                        <CircleCheck class="w-4 h-4" style="color: #16a34a;"
+                          v-if="isCompleted(module.slug, task.slug)" />
                         <span>{{ task.name }}</span>
                       </router-link>
                     </SidebarMenuSubButton>

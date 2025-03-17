@@ -24,6 +24,19 @@ import menuData from '@/data/menu.json'
 
 const route = useRoute()
 
+// 将每道题的上一题和下一题 提前计算到task中，方便后续跳转
+const flat_topic = ref<any[]>([])
+menuData.navMain.forEach((collect: any) => {
+    collect.child.tasks.forEach((topic: any) => {
+        topic.full_slug = `/${collect.slug}/${topic.slug}`
+        flat_topic.value.push(topic)
+    })
+})
+flat_topic.value.forEach((topic, index) => {
+    topic.prev_slug = flat_topic.value[index - 1]?.full_slug
+    topic.next_slug = flat_topic.value[index + 1]?.full_slug
+})
+
 const collectList = ref(menuData.navMain)
 
 // 获取当前路由对应的菜单项
@@ -42,12 +55,12 @@ const info = computed(() => {
     // 当前题目
     const topic = collect.child.tasks[topic_index] || null
 
-    return { collect, topic, }
+    return { collect, topic }
 })
 provide('info', info)
 
-const reloadKey = ref(0)
-watch(route, () => reloadKey.value++)
+const viewKey = ref(0)
+watch(route, () => viewKey.value++)
 </script>
 <template>
     <SidebarProvider :style="{ '--sidebar-width': '20rem' }">
@@ -71,7 +84,7 @@ watch(route, () => reloadKey.value++)
                 </Breadcrumb>
             </header>
             <div class="flex flex-1 flex-col gap-4 p-2 pt-0 overflow-hidden">
-                <router-view :key="reloadKey" />
+                <router-view :key="viewKey" />
             </div>
         </SidebarInset>
     </SidebarProvider>

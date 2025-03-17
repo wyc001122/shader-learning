@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import * as THREE from "three"
 // 导入子组件
 import MonacoEditor from '@/components/MonacoEditor.vue'
 import ProblemContent from '@/components/ProblemContent.vue'
@@ -6,9 +7,20 @@ import ActionButtons from '@/components/ActionButtons.vue'
 import { comparePixelData } from '@/utils/comparePixelData'
 import markdownit from 'markdown-it'
 import hljs from "highlight.js"
-
-// 导入服务
+import { useStorage } from '@vueuse/core'
+import { ANSWER_KEY } from '@/utils/locaAnswer'
 import ThreeCanvas from '@/components/ThreeCanvas.vue'
+import router from '@/router'
+
+const clock = new THREE.Clock()
+const iTime = ref(0)
+function updateTime() {
+  iTime.value = clock.getElapsedTime()
+  requestAnimationFrame(updateTime)
+}
+updateTime()
+
+
 
 const md = markdownit({ html: true })
 const info = inject('info') as Ref<any>
@@ -47,12 +59,25 @@ const editForm = ref({
 // 当前编辑的着色器类型
 const activeShaderTab = ref('fragment')
 
+const local_answer = useStorage(ANSWER_KEY, {}) as Ref<any>
+
 // 初始化任务数据
 function initTaskData() {
   activeShaderTab.value = taskDetail.value.vertexCodeEditable ? 'vertex' : 'fragment'
-  editForm.value.vertexShader = taskDetail.value.defaultVertexShader;
-  editForm.value.fragmentShader = taskDetail.value.defaultFragmentShader;
+
+  const answer_vertex = local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_vertex`]
+  const answer_fragment = local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_fragment`]
+  if (answer_vertex && answer_fragment) {
+    editForm.value.vertexShader = answer_vertex
+    editForm.value.fragmentShader = answer_fragment
+  } else {
+    editForm.value.vertexShader = taskDetail.value.defaultVertexShader;
+    editForm.value.fragmentShader = taskDetail.value.defaultFragmentShader;
+  }
 }
+// 初始化数据
+initTaskData()
+
 
 // 添加状态管理
 const feedbackMessage = ref({
@@ -75,13 +100,13 @@ const canvasRef2 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
 
 // 用于清除定时器
 let frameCheckIntervalId: number | undefined = undefined
-
+const frequency = 100 // 每100ms检查一次
+const totalFrames = 30; // 判断30帧
 function handleSubmitCode() {
   // 设置加载状态
   isSubmitting.value = true;
-  
+
   // 对于动画着色器，需要连续判断多帧
-  const totalFrames = 30; // 判断30帧
   let matchedFrames = 0;
   let currentFrame = 0;
   let hasFailure = false; // 标记是否有不匹配的帧
@@ -110,21 +135,21 @@ function handleSubmitCode() {
       hasFailure = true;
       clearInterval(frameCheckIntervalId);
       frameCheckIntervalId = undefined;
-      
+
       // 关闭加载状态
       isSubmitting.value = false;
-      
+
       // 显示失败消息
       feedbackMessage.value = {
         show: true,
         message: '失败，你的着色器实现与预期不一致，请检查并修改。'
       };
-      
+
       // 3秒后自动隐藏失败消息
       setTimeout(() => {
         feedbackMessage.value.show = false;
       }, 3000);
-      
+
       return;
     }
 
@@ -134,20 +159,28 @@ function handleSubmitCode() {
     if (currentFrame >= totalFrames) {
       clearInterval(frameCheckIntervalId);
       frameCheckIntervalId = undefined;
-      
+
       // 关闭加载状态
       isSubmitting.value = false;
-      
+
       // 显示成功弹窗
       successDialog.value = {
         show: true,
         message: '恭喜！提交成功！你的着色器实现与预期一致。'
       };
-      
-      // TODO: 保存用户答案和更新完成状态的逻辑
+
+      saveAnswer()
     }
-  }, 100); // 每100ms检查一次
+  }, frequency); // 每100ms检查一次
 }
+
+
+// 保存答案
+function saveAnswer() {
+  local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_vertex`] = editForm.value.vertexShader
+  local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_fragment`] = editForm.value.fragmentShader
+}
+
 
 // 关闭成功弹窗
 function closeSuccessDialog() {
@@ -156,8 +189,11 @@ function closeSuccessDialog() {
 
 // 前往下一题
 function goToNextTopic() {
+  const { topic } = info.value
   // TODO: 实现导航到下一题的逻辑
   closeSuccessDialog();
+  router.push(topic.next_slug)
+
 }
 
 // 组件卸载时清理资源
@@ -167,7 +203,7 @@ onUnmounted(() => {
     clearInterval(frameCheckIntervalId);
     frameCheckIntervalId = undefined;
   }
-  
+
   // 确保状态被重置
   isSubmitting.value = false;
   feedbackMessage.value.show = false;
@@ -192,8 +228,6 @@ function handleResetCode() {
   handleRunCode()
 }
 
-// 初始化数据
-initTaskData()
 
 </script>
 
@@ -203,7 +237,8 @@ initTaskData()
     <Transition name="fade">
       <div v-if="feedbackMessage.show" class="feedback-message">
         <div class="feedback-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -213,7 +248,8 @@ initTaskData()
           <p>{{ feedbackMessage.message }}</p>
         </div>
         <button class="feedback-close" @click="feedbackMessage.show = false">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -250,9 +286,9 @@ initTaskData()
         </div>
         <div class="loading-text">
           <span class="loading-title">正在验证着色器</span>
-          <span class="loading-description">请稍候，正在对比多帧渲染结果...</span>
+          <span class="loading-description">请稍候，正在检验渲染结果...</span>
         </div>
-        <div class="progress-bar">
+        <div class="progress-bar" :style="{ '--animationDuration': `${frequency * totalFrames / 1000}s` }">
           <div class="progress-fill"></div>
         </div>
       </div>
@@ -261,7 +297,7 @@ initTaskData()
     <!-- 主要内容区域 -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full lg:overflow-hidden " v-if="taskDetail">
       <!-- 左侧题目区域 -->
-      <div class="flex flex-col lg:col-span-5 bg-card h-[500px] lg:h-full overflow-y-auto">
+      <div class="flex flex-col lg:col-span-5 bg-card h-[500px] lg:h-full overflow-y-auto ">
         <ProblemContent />
       </div>
       <!-- 右侧代码和输出区域 -->
@@ -301,14 +337,14 @@ initTaskData()
                   <div class="text-sm font-medium mb-2 text-foreground truncate">预期输出</div>
                   <div class="h-36 rounded-md overflow-hidden">
                     <ThreeCanvas ref="canvasRef1" :vertex-shader="taskDetail?.vertexShader || ''"
-                      :fragment-shader="taskDetail?.fragmentShader || ''" />
+                      :fragment-shader="taskDetail?.fragmentShader || ''" :iTime="iTime"/>
                   </div>
                 </div>
                 <div class="flex-1">
                   <div class="text-sm font-medium mb-2 text-foreground truncate">实际输出</div>
                   <div class="h-36 rounded-md overflow-hidden">
                     <ThreeCanvas ref="canvasRef2" :vertex-shader="editForm?.vertexShader || ''"
-                      :fragment-shader="editForm?.fragmentShader || ''" />
+                      :fragment-shader="editForm?.fragmentShader || ''" :iTime="iTime"/>
                   </div>
                 </div>
               </div>
@@ -352,14 +388,15 @@ initTaskData()
   z-index: 1000;
   max-width: 450px;
   width: calc(100% - 32px);
-  
+
   .feedback-icon {
     flex-shrink: 0;
     color: #ce364c;
   }
-  
+
   .feedback-content {
     flex: 1;
+
     p {
       margin: 0;
       color: #333;
@@ -367,7 +404,7 @@ initTaskData()
       line-height: 1.5;
     }
   }
-  
+
   .feedback-close {
     flex-shrink: 0;
     background: none;
@@ -376,7 +413,7 @@ initTaskData()
     cursor: pointer;
     padding: 4px;
     transition: color 0.2s;
-    
+
     &:hover {
       color: #333;
     }
@@ -437,7 +474,7 @@ initTaskData()
   padding: 0 20px 20px;
   color: #666;
   font-size: 16px;
-  
+
   p {
     margin: 0;
     line-height: 1.5;
@@ -455,7 +492,8 @@ initTaskData()
   padding: 15px;
 }
 
-.btn-next, .btn-close {
+.btn-next,
+.btn-close {
   flex: 1;
   padding: 12px 0;
   border-radius: 6px;
@@ -470,7 +508,7 @@ initTaskData()
   color: white;
   border: none;
   margin-right: 10px;
-  
+
   &:hover {
     background-color: #3d8a44;
   }
@@ -480,19 +518,19 @@ initTaskData()
   background-color: #f5f5f5;
   color: #666;
   border: none;
-  
+
   &:hover {
     background-color: #e8e8e8;
   }
 }
 
 /* 动画效果 */
-.fade-enter-active, 
+.fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s, transform 0.3s;
 }
 
-.fade-enter-from, 
+.fade-enter-from,
 .fade-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-20px);
@@ -666,7 +704,7 @@ initTaskData()
   background-color: #4ca154;
   width: 30%;
   border-radius: 2px;
-  animation: progress 5s ease-in-out infinite;
+  animation: progress var(--animationDuration) ease-in-out infinite;
   position: relative;
 }
 
