@@ -54,6 +54,126 @@ function initTaskData() {
   editForm.value.fragmentShader = taskDetail.value.defaultFragmentShader;
 }
 
+// 添加状态管理
+const feedbackMessage = ref({
+  show: false,
+  message: '',
+})
+
+// 添加成功弹窗状态
+const successDialog = ref({
+  show: false,
+  message: '',
+})
+
+// 添加加载状态
+const isSubmitting = ref(false)
+
+// 提交
+const canvasRef1 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
+const canvasRef2 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
+
+// 用于清除定时器
+let frameCheckIntervalId: number | undefined = undefined
+
+function handleSubmitCode() {
+  // 设置加载状态
+  isSubmitting.value = true;
+  
+  // 对于动画着色器，需要连续判断多帧
+  const totalFrames = 30; // 判断30帧
+  let matchedFrames = 0;
+  let currentFrame = 0;
+  let hasFailure = false; // 标记是否有不匹配的帧
+
+  // 清除之前可能存在的间隔定时器
+  if (frameCheckIntervalId !== undefined) {
+    clearInterval(frameCheckIntervalId);
+  }
+
+  // 开始帧检查
+  frameCheckIntervalId = setInterval(() => {
+    // 如果已经发现不匹配，不再继续检查
+    if (hasFailure) {
+      return;
+    }
+
+    // 获取并比较像素数据
+    const data1 = canvasRef1.value?.getPixelData();
+    const data2 = canvasRef2.value?.getPixelData();
+    const frameMatches = comparePixelData(data1, data2);
+
+    if (frameMatches) {
+      matchedFrames++;
+    } else {
+      // 发现不匹配的帧，标记失败
+      hasFailure = true;
+      clearInterval(frameCheckIntervalId);
+      frameCheckIntervalId = undefined;
+      
+      // 关闭加载状态
+      isSubmitting.value = false;
+      
+      // 显示失败消息
+      feedbackMessage.value = {
+        show: true,
+        message: '失败，你的着色器实现与预期不一致，请检查并修改。'
+      };
+      
+      // 3秒后自动隐藏失败消息
+      setTimeout(() => {
+        feedbackMessage.value.show = false;
+      }, 3000);
+      
+      return;
+    }
+
+    currentFrame++;
+
+    // 检查是否已完成所有帧的检查
+    if (currentFrame >= totalFrames) {
+      clearInterval(frameCheckIntervalId);
+      frameCheckIntervalId = undefined;
+      
+      // 关闭加载状态
+      isSubmitting.value = false;
+      
+      // 显示成功弹窗
+      successDialog.value = {
+        show: true,
+        message: '恭喜！提交成功！你的着色器实现与预期一致。'
+      };
+      
+      // TODO: 保存用户答案和更新完成状态的逻辑
+    }
+  }, 100); // 每100ms检查一次
+}
+
+// 关闭成功弹窗
+function closeSuccessDialog() {
+  successDialog.value.show = false;
+}
+
+// 前往下一题
+function goToNextTopic() {
+  // TODO: 实现导航到下一题的逻辑
+  closeSuccessDialog();
+}
+
+// 组件卸载时清理资源
+onUnmounted(() => {
+  // 清除帧检查间隔定时器
+  if (frameCheckIntervalId !== undefined) {
+    clearInterval(frameCheckIntervalId);
+    frameCheckIntervalId = undefined;
+  }
+  
+  // 确保状态被重置
+  isSubmitting.value = false;
+  feedbackMessage.value.show = false;
+  successDialog.value.show = false;
+});
+
 // 运行
 function handleRunCode(isSubmit = false) {
   canvasRef2.value?.updateMaterial(editForm.value.vertexShader, editForm.value.fragmentShader)
@@ -62,14 +182,6 @@ function handleRunCode(isSubmit = false) {
   }
 }
 
-// 提交
-const canvasRef1 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
-const canvasRef2 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
-function handleSubmitCode() {
-  const data1 = canvasRef1.value?.getPixelData();
-  const data2 = canvasRef2.value?.getPixelData();
-  comparePixelData(data1, data2);
-}
 // 重置
 function handleResetCode() {
   if (activeShaderTab.value === 'fragment') {
@@ -87,6 +199,65 @@ initTaskData()
 
 <template>
   <div class="shader-problem-container">
+    <!-- 失败消息提示 -->
+    <Transition name="fade">
+      <div v-if="feedbackMessage.show" class="feedback-message">
+        <div class="feedback-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <div class="feedback-content">
+          <p>{{ feedbackMessage.message }}</p>
+        </div>
+        <button class="feedback-close" @click="feedbackMessage.show = false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </Transition>
+
+    <!-- 成功弹窗 -->
+    <Transition name="dialog-fade">
+      <div v-if="successDialog.show" class="success-dialog-overlay">
+        <div class="success-dialog">
+          <h3 class="success-title">提交成功</h3>
+          <div class="success-body">
+            <p>{{ successDialog.message }}</p>
+          </div>
+          <div class="success-divider"></div>
+          <div class="success-actions">
+            <button class="btn-next" @click="goToNextTopic">下一题</button>
+            <button class="btn-close" @click="closeSuccessDialog">关闭</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- 加载遮罩 -->
+    <div v-if="isSubmitting" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="top-line"></div>
+        <div class="loader">
+          <div class="circle"></div>
+          <div class="circle"></div>
+          <div class="circle"></div>
+          <div class="circle"></div>
+        </div>
+        <div class="loading-text">
+          <span class="loading-title">正在验证着色器</span>
+          <span class="loading-description">请稍候，正在对比多帧渲染结果...</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 主要内容区域 -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full lg:overflow-hidden " v-if="taskDetail">
       <!-- 左侧题目区域 -->
@@ -145,7 +316,7 @@ initTaskData()
 
             <!-- 底部操作按钮 -->
             <ActionButtons :active-shader-type="activeShaderTab" @run="handleRunCode" @reset="handleResetCode"
-              @run-and-submit="() => handleRunCode(true)" />
+              @run-and-submit="() => handleRunCode(true)" :is-submitting="isSubmitting" />
           </div>
         </div>
       </div>
@@ -164,116 +335,56 @@ initTaskData()
   /* 添加相对定位 */
 }
 
-/* 消息提示样式 */
+/* 失败消息提示样式 */
 .feedback-message {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #ce364c;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   z-index: 1000;
   max-width: 450px;
   width: calc(100% - 32px);
-
-  &.success {
-    background-color: hsl(var(--background));
-    border: 1px solid rgba(76, 161, 84, 0.2);
-    color: hsl(var(--foreground));
-
-    .icon {
-      color: #4ca154;
-    }
-
-    .message-title {
-      color: #4ca154;
-    }
-  }
-
-  &.error {
-    background-color: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--foreground));
-
-    .icon {
-      color: hsl(var(--destructive));
-    }
-
-    .message-title {
-      color: hsl(var(--destructive));
-    }
-  }
-
-  .icon {
+  
+  .feedback-icon {
     flex-shrink: 0;
-    margin-top: 2px;
+    color: #ce364c;
   }
-
-  .message-content {
+  
+  .feedback-content {
     flex: 1;
+    p {
+      margin: 0;
+      color: #333;
+      font-size: 14px;
+      line-height: 1.5;
+    }
   }
-
-  .message-title {
-    font-weight: 600;
-    font-size: 14px;
-    margin: 0 0 4px 0;
-  }
-
-  .message-description {
-    font-size: 14px;
-    margin: 0;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.5;
-  }
-
-  .close-button {
+  
+  .feedback-close {
+    flex-shrink: 0;
     background: none;
     border: none;
-    padding: 0;
+    color: #999;
     cursor: pointer;
-    color: hsl(var(--muted-foreground));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 8px;
-    flex-shrink: 0;
-
+    padding: 4px;
+    transition: color 0.2s;
+    
     &:hover {
-      color: hsl(var(--foreground));
+      color: #333;
     }
   }
-}
-
-/* 淡入淡出动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-20px);
-}
-
-/* 模态框动画 */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
 }
 
 /* 成功弹窗样式 */
-.success-modal-overlay {
+.success-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -287,7 +398,7 @@ initTaskData()
   backdrop-filter: blur(4px);
 }
 
-.success-modal {
+.success-dialog {
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
@@ -295,6 +406,22 @@ initTaskData()
   max-width: 400px;
   text-align: center;
   position: relative;
+  overflow: hidden;
+}
+
+.success-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #4ca154;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 15px rgba(76, 161, 84, 0.3);
 }
 
 .success-title {
@@ -302,14 +429,19 @@ initTaskData()
   font-weight: 600;
   margin: 0;
   color: #333;
-  padding-top: 40px;
+  padding-top: 50px;
   margin-bottom: 10px;
 }
 
-.success-message {
+.success-body {
   padding: 0 20px 20px;
   color: #666;
   font-size: 16px;
+  
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
 }
 
 .success-divider {
@@ -323,8 +455,7 @@ initTaskData()
   padding: 15px;
 }
 
-.btn-next,
-.btn-close {
+.btn-next, .btn-close {
   flex: 1;
   padding: 12px 0;
   border-radius: 6px;
@@ -339,59 +470,52 @@ initTaskData()
   color: white;
   border: none;
   margin-right: 10px;
-}
-
-.btn-next:hover {
-  background-color: #3d8a44;
+  
+  &:hover {
+    background-color: #3d8a44;
+  }
 }
 
 .btn-close {
   background-color: #f5f5f5;
   color: #666;
   border: none;
-}
-
-@media (max-width: 1023px) {
-  .shader-problem-container {
-    height: auto;
-    min-height: calc(100vh - 64px);
-    overflow-y: auto;
-    padding-bottom: 0.6rem;
-  }
-
-  .grid {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .flex-col {
-    min-height: 0;
+  
+  &:hover {
+    background-color: #e8e8e8;
   }
 }
 
-/* 添加菜单项高亮动画效果 */
-.highlight-active {
-  animation: pulse-highlight 2s ease-in-out;
+/* 动画效果 */
+.fade-enter-active, 
+.fade-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
 }
 
-@keyframes pulse-highlight {
-  0% {
-    background-color: transparent;
-  }
-
-  30% {
-    background-color: rgba(76, 161, 84, 0.1);
-  }
-
-  100% {
-    background-color: transparent;
-  }
+.fade-enter-from, 
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 
-.output-preview {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.dialog-fade-enter-from,
+.dialog-fade-leave-to {
+  opacity: 0;
+}
+
+.dialog-fade-enter-active .success-dialog,
+.dialog-fade-leave-active .success-dialog {
+  transition: transform 0.3s;
+}
+
+.dialog-fade-enter-from .success-dialog,
+.dialog-fade-leave-to .success-dialog {
+  transform: scale(0.95);
 }
 
 /* 加载遮罩样式 */
@@ -602,22 +726,28 @@ initTaskData()
   }
 }
 
-
-@keyframes icon-appear {
-  0% {
-    transform: scale(0) rotate(-90deg);
-    opacity: 0;
+@media (max-width: 1023px) {
+  .shader-problem-container {
+    height: auto;
+    min-height: calc(100vh - 64px);
+    overflow-y: auto;
+    padding-bottom: 0.6rem;
   }
 
-  70% {
-    transform: scale(1.2) rotate(0deg);
-    opacity: 1;
+  .grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
+  .flex-col {
+    min-height: 0;
   }
+}
+
+.output-preview {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 </style>
 
