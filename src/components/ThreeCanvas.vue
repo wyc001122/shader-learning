@@ -58,7 +58,6 @@ onMounted(async () => {
     for (let index = 0; index < channels.length; index++) {
         const url = getChannelImage(index)
         const texture = await textLoader.loadAsync(url)
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping
         texture.magFilter = texture.minFilter = THREE.NearestFilter
         texture.needsUpdate = true
         textures.push(texture)
@@ -79,7 +78,6 @@ onMounted(async () => {
     const mat2 = (sceneSettings.value.materials || []).map((pe: any) => createMaterial(+sceneSettings.value.glslVersion, pe.vertex, pe.fragment, props.elapsedTime, pe.textures, 0, pe.properties));
 
     const materials = [mat1, ...mat2]
-    console.log("%c Line:82 🍷 materials", "color:#2eafb0", materials);
 
     // 创建对象 
     let objects;
@@ -131,7 +129,7 @@ onMounted(async () => {
 
 
 
-            const mesh = load_mesh || new THREE.Mesh(geometry, material);
+            const mesh:any = load_mesh || new THREE.Mesh(geometry, material);
 
             if (mesh.isGroup) {
                 mesh.traverse((item: any) => {
