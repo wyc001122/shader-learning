@@ -13,9 +13,11 @@ import ThreeCanvas from '@/components/ThreeCanvas.vue'
 import router from '@/router'
 
 const clock = new THREE.Clock()
-const iTime = ref(0)
+const elapsedTime = ref(0)
+const delta = ref(0)
 function updateTime() {
-  iTime.value = clock.getElapsedTime()
+  delta.value = clock.getDelta() * 1000
+  elapsedTime.value = clock.getElapsedTime()
   requestAnimationFrame(updateTime)
 }
 updateTime()
@@ -32,8 +34,18 @@ const taskDetail = computed(() => {
   let vertex_answer = hljs.highlight(topic.child.task.vertexShader, { language: 'glsl' }).value
   vertex_answer = vertex_answer.replace(/^[\s\n]+/, '')
 
-  let task_description = md.render(topic.child.task.description.split('### Task').filter(Boolean)[1] || '')
-  let theory_description = md.render(topic.child.task.description.split('### Task').filter(Boolean)[0] || '')
+  const split_description = topic.child.task.description.split('### Task').filter(Boolean)
+  let task_description = ''
+  let theory_description = ''
+  if (split_description.length === 1) {
+    task_description = md.render(split_description[0] || '无')
+    theory_description = '无' // 无理论知识
+  } else {
+    task_description = md.render(split_description[1] || '无')
+    theory_description = md.render(split_description[0] || '无')
+  }
+
+
 
   const _res: any = {
     ...topic,
@@ -100,7 +112,7 @@ const canvasRef2 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
 
 // 用于清除定时器
 let frameCheckIntervalId: number | undefined = undefined
-const frequency = 100 // 每100ms检查一次
+const frequency = 10 // 每100ms检查一次
 const totalFrames = 30; // 判断30帧
 function handleSubmitCode() {
   // 设置加载状态
@@ -145,6 +157,8 @@ function handleSubmitCode() {
         message: '失败，你的着色器实现与预期不一致，请检查并修改。'
       };
 
+      clearAnswer()
+
       // 3秒后自动隐藏失败消息
       setTimeout(() => {
         feedbackMessage.value.show = false;
@@ -181,6 +195,12 @@ function saveAnswer() {
   local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_fragment`] = editForm.value.fragmentShader
 }
 
+// 清除答案
+function clearAnswer() {
+  local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_vertex`] = ''
+  local_answer.value[`${info.value.collect.slug}_${info.value.topic.slug}_fragment`] = ''
+}
+
 
 // 关闭成功弹窗
 function closeSuccessDialog() {
@@ -190,8 +210,8 @@ function closeSuccessDialog() {
 // 前往下一题
 function goToNextTopic() {
   const { topic } = info.value
-  // TODO: 实现导航到下一题的逻辑
   closeSuccessDialog();
+  console.log("%c Line:215 🍑 topic.next_slug", "color:#4fff4B", topic.next_slug);
   router.push(topic.next_slug)
 
 }
@@ -227,7 +247,6 @@ function handleResetCode() {
   }
   handleRunCode()
 }
-
 
 </script>
 
@@ -337,14 +356,14 @@ function handleResetCode() {
                   <div class="text-sm font-medium mb-2 text-foreground truncate">预期输出</div>
                   <div class="h-36 rounded-md overflow-hidden">
                     <ThreeCanvas ref="canvasRef1" :vertex-shader="taskDetail?.vertexShader || ''"
-                      :fragment-shader="taskDetail?.fragmentShader || ''" :iTime="iTime"/>
+                      :fragment-shader="taskDetail?.fragmentShader || ''" :elapsedTime="elapsedTime" :delta="delta"/>
                   </div>
                 </div>
                 <div class="flex-1">
                   <div class="text-sm font-medium mb-2 text-foreground truncate">实际输出</div>
                   <div class="h-36 rounded-md overflow-hidden">
                     <ThreeCanvas ref="canvasRef2" :vertex-shader="editForm?.vertexShader || ''"
-                      :fragment-shader="editForm?.fragmentShader || ''" :iTime="iTime"/>
+                      :fragment-shader="editForm?.fragmentShader || ''" :elapsedTime="elapsedTime" :delta="delta"/>
                   </div>
                 </div>
               </div>

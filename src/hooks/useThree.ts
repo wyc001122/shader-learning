@@ -83,7 +83,13 @@ export const useThree = (container: HTMLElement, sceneSettings: SceneSettings) =
     }));
 
     // 创建渲染器
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        depth: true,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: true,
+    });
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
@@ -92,9 +98,8 @@ export const useThree = (container: HTMLElement, sceneSettings: SceneSettings) =
     const scene = new THREE.Scene();
 
     // 设置背景色
-    if (sceneSettings.backgroundRGBA) {
-        scene.background = new THREE.Color(sceneSettings.background);
-    }
+    console.log("%c Line:113 🍡 sceneSettings", "color:#93c0a4", sceneSettings);
+    scene.background = new THREE.Color(sceneSettings.background);
 
     // 创建相机
     let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
@@ -124,11 +129,9 @@ export const useThree = (container: HTMLElement, sceneSettings: SceneSettings) =
         sceneSettings.camera.position.z
     );
 
-    camera.rotation.set(
-        sceneSettings.camera.rotation.x,
-        sceneSettings.camera.rotation.y,
-        sceneSettings.camera.rotation.z
-    );
+    camera.rotateY(sceneSettings.camera.rotation.y)
+    camera.rotateX(sceneSettings.camera.rotation.x)
+    camera.rotateZ(sceneSettings.camera.rotation.z)
 
     const clock = new THREE.Clock();
 

@@ -52,7 +52,6 @@ const reloadKey = ref(0)
 function scrollIntoCurrent() {
   // 找到 a标签 且带有属性 data-sidebar='menu-sub-button' 且 data-active = true 的
   const target = document.querySelector('a[data-active=true]')
-  console.log("%c Line:55 🥛 target", "color:#7f2b82", target);
   if (!target) {
     reloadKey.value++
     return

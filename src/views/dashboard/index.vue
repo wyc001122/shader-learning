@@ -60,7 +60,9 @@ const info = computed(() => {
 provide('info', info)
 
 const viewKey = ref(0)
-watch(route, () => viewKey.value++)
+watch(route, () => {
+    viewKey.value++
+})
 </script>
 <template>
     <SidebarProvider :style="{ '--sidebar-width': '20rem' }">
