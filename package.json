@@ -5,7 +5,7 @@
   "main": "script/getData.js",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "sync": "node script/getData.js",
     "sync-images": "node script/getImage.js",
@@ -37,6 +37,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.13.10",
     "@types/three": "^0.174.0",
     "@vitejs/plugin-vue": "^5.2.1",
