@@ -78,6 +78,7 @@ onMounted(async () => {
     const mat2 = (sceneSettings.value.materials || []).map((pe: any) => createMaterial(+sceneSettings.value.glslVersion, pe.vertex, pe.fragment, props.elapsedTime, pe.textures, 0, pe.properties));
 
     const materials = [mat1, ...mat2]
+    console.log("%c Line:81 🍕 materials", "color:#33a5ff", materials);
 
     // 创建对象 
     let objects;
@@ -89,6 +90,7 @@ onMounted(async () => {
 
     if (objects && objects.length > 0) {
         objects.forEach(async (object: any, index: number) => {
+            console.log("%c Line:93 🌭 object", "color:#b03734", object);
             let geometry
             let modelsArr: any[] = []
             let load_mesh = null
@@ -113,10 +115,13 @@ onMounted(async () => {
             let materialIndex = 0
             if(object.model){
                 materialIndex = object.meshes.findIndex((item: any) => item.name === object.model.split('.')[0])
-            }
-            const materialId = object.meshes ? object.meshes[materialIndex]?.materialId : 0
-            console.log("%c Line:122 🥚 materialId", "color:#fca650", materialId);
+                if (materialIndex < 0) {
+                    materialIndex = 0
+                }
+            } 
+            const materialId = object.meshes ? object.meshes[materialIndex]?.materialId : 0 
             const material = materials[materialId]
+
             tick(() => {
                 material.uniforms.projectionMatrix.value = camera.projectionMatrix
                 material.uniforms.viewMatrix.value = camera.matrixWorldInverse
