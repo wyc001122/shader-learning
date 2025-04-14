@@ -11,6 +11,8 @@ import { useStorage } from '@vueuse/core'
 import { ANSWER_KEY } from '@/utils/locaAnswer'
 import ThreeCanvas from '@/components/ThreeCanvas.vue'
 import router from '@/router'
+// @ts-ignore
+import mk from 'markdown-it-katex'
 
 const clock = new THREE.Clock()
 const elapsedTime = ref(0)
@@ -24,7 +26,8 @@ updateTime()
 
 
 
-const md = markdownit({ html: true })
+const md = markdownit({ html: true }).use(mk)
+
 const info = inject('info') as Ref<any>
 const taskDetail = computed(() => {
   const { topic } = info.value
@@ -111,7 +114,7 @@ const canvasRef1 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
 const canvasRef2 = ref<InstanceType<typeof ThreeCanvas> | null>(null)
 
 // 用于清除定时器
-let frameCheckIntervalId: number | undefined = undefined
+let frameCheckIntervalId: NodeJS.Timeout | undefined = undefined
 const frequency = 10 // 每100ms检查一次
 const totalFrames = 30; // 判断30帧
 function handleSubmitCode() {
